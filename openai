@@ -1,0 +1,193 @@
+# streamlit_app.py
+
+import os
+import re
+from dataclasses import dataclass
+from typing import List, Dict
+
+import streamlit as st
+import matplotlib.pyplot as plt
+import numpy as np
+
+try:
+    import fitz  # PyMuPDF
+except Exception:
+    fitz = None
+
+# -----------------------------
+# Utility & Config
+# -----------------------------
+
+STOPWORDS = set("""
+a an the and or but if while of on in into to for from with without over under
+is are was were be been being this that those these it its as at by about we i me my our your their them you
+""".split())
+
+ROLE_SKILL_PRESETS: Dict[str, List[str]] = {
+    "Data Scientist": ["python", "pandas", "numpy", "scikit-learn", "sql", "statistics", "machine learning"],
+    "Frontend Developer": ["javascript", "typescript", "react", "redux", "html", "css", "tailwind"],
+    "Backend Developer": ["python", "java", "node.js", "express", "spring", "rest api", "sql"],
+}
+
+@dataclass
+class ResumeOutput:
+    summary: str
+    strengths: List[str]
+    weaknesses: List[str]
+    missing_keywords: List[str]
+    score: int
+
+# -----------------------------
+# Extraction & Analysis
+# -----------------------------
+
+def extract_text_from_pdf(file_bytes: bytes) -> str:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF is not installed.")
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    text_parts = [page.get_text() for page in doc]
+    return "\n".join(text_parts)
+
+
+def analyze_resume(resume_text: str, role: str) -> ResumeOutput:
+    words = re.findall(r"[a-zA-Z]+", resume_text.lower())
+    score = min(100, len(words) // 5)
+
+    preset = ROLE_SKILL_PRESETS.get(role, [])
+    present = [kw for kw in preset if kw in resume_text.lower()]
+    missing = [kw for kw in preset if kw not in present]
+
+    strengths = [f"Contains skill: {kw}" for kw in present]
+    weaknesses = ["Add more measurable achievements.", "Avoid long paragraphs; use bullet points."]
+
+    return ResumeOutput(
+        summary=f"This resume is moderately aligned for {role}.",
+        strengths=strengths,
+        weaknesses=weaknesses,
+        missing_keywords=missing,
+        score=score,
+    )
+
+# -----------------------------
+# Streamlit UI with Advanced CSS Styling
+# -----------------------------
+
+st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
+
+# Inject custom CSS for advanced styling
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #f9f9f9;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .main-title {
+        text-align: center;
+        font-size: 2.5em;
+        color: #2c3e50;
+        margin-bottom: 20px;
+    }
+    .stButton>button {
+        background-color: #2ecc71;
+        color: white;
+        border-radius: 10px;
+        padding: 0.6em 1.2em;
+        border: none;
+        font-size: 1em;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #27ae60;
+        transform: scale(1.05);
+    }
+    .stMetric label, .stSubheader, h2, h3 {
+        color: #34495e;
+    }
+    .css-1d391kg p {
+        font-size: 1.1em;
+        line-height: 1.6;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown("<h1 class='main-title'>📄 Smart Resume Reviewer — Visual Output</h1>", unsafe_allow_html=True)
+
+role = st.sidebar.selectbox("Target Role", list(ROLE_SKILL_PRESETS.keys()), index=0)
+
+st.subheader("Upload Resume")
+up = st.file_uploader("Upload PDF or TXT", type=["pdf", "txt"])
+resume_text_input = st.text_area("Or paste resume text", height=200)
+
+if st.button("🔍 Analyze Resume"):
+    resume_text = ""
+    if up:
+        if up.type == "application/pdf":
+            resume_text = extract_text_from_pdf(up.read())
+        else:
+            resume_text = up.read().decode(errors="ignore")
+    elif resume_text_input:
+        resume_text = resume_text_input
+
+    if not resume_text.strip():
+        st.warning("Please upload or paste resume text.")
+    else:
+        output = analyze_resume(resume_text, role)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric("Overall Score", output.score)
+            st.subheader("Summary")
+            st.write(output.summary)
+
+            st.subheader("Strengths")
+            for s in output.strengths:
+                st.write("✔️", s)
+
+            st.subheader("Weaknesses")
+            for w in output.weaknesses:
+                st.write("⚠️", w)
+
+        with col2:
+            # Bar chart of section scores (dummy for now)
+            section_names = ["Skills", "Experience", "Education", "Projects"]
+            section_scores = [min(100, output.score + np.random.randint(-10, 10)) for _ in section_names]
+
+            fig, ax = plt.subplots()
+            ax.bar(section_names, section_scores, color="#3498db")
+            ax.set_ylim(0, 100)
+            ax.set_ylabel("Score")
+            ax.set_title("Section-wise Scores")
+            st.pyplot(fig)
+
+            # Radar chart for skills coverage
+            skills = ROLE_SKILL_PRESETS.get(role, [])
+            if skills:
+                values = [1 if kw in resume_text.lower() else 0 for kw in skills]
+                num_skills = len(skills)
+
+                angles = np.linspace(0, 2 * np.pi, num_skills, endpoint=False).tolist()
+                values += values[:1]
+                angles += angles[:1]
+
+                fig2, ax2 = plt.subplots(subplot_kw={"polar": True})
+                ax2.plot(angles, values, "o-", linewidth=2, color="#e74c3c")
+                ax2.fill(angles, values, alpha=0.25, color="#e74c3c")
+                ax2.set_xticks(angles[:-1])
+                ax2.set_xticklabels(skills)
+                ax2.set_yticks([0, 1])
+                ax2.set_title("Skills Coverage Radar")
+                st.pyplot(fig2)
+
+        st.subheader("Missing Keywords")
+        st.write(", ".join(output.missing_keywords) if output.missing_keywords else "None 🎉")
+
+        st.download_button(
+            label="Download Analysis Report",
+            data=f"Summary:\n{output.summary}\n\nStrengths:\n- " + "\n- ".join(output.strengths) + "\n\nWeaknesses:\n- " + "\n- ".join(output.weaknesses),
+            file_name="resume_report.txt",
+            mime="text/plain",
+        )
