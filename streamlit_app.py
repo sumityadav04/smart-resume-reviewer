@@ -15,22 +15,24 @@ import openai
 st.set_page_config(page_title="Smart Resume Reviewer", layout="wide")
 
 # Sidebar: API key input and settings
-st.sidebar.title("Settings 🔧")
-api_key_input = st.sidebar.text_input("OpenAI API key (optional)", type="password")
+st.sidebar.title("🔑 API & Settings")
+st.sidebar.markdown("Enter your OpenAI API key to unlock GPT-powered suggestions. If left empty, demo suggestions will be shown.")
+
+api_key_input = st.sidebar.text_input("Enter OpenAI API Key", type="password", help="Paste your OpenAI key here (sk-...).")
 if api_key_input:
     openai.api_key = api_key_input
 else:
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
 if not openai.api_key:
-    st.sidebar.warning("OpenAI API key not found — GPT features will be disabled.")
+    st.sidebar.warning("⚠️ No API key detected — GPT features will show demo suggestions.")
 
-role = st.sidebar.selectbox("Target Role", ["Data Scientist", "Frontend Developer", "Backend Developer", "Product Manager"], index=0)
-use_gpt = st.sidebar.checkbox("Enable GPT suggestions", value=bool(openai.api_key))
-max_gpt_tokens = st.sidebar.slider("GPT max tokens", 200, 1200, 600)
+role = st.sidebar.selectbox("🎯 Target Role", ["Data Scientist", "Frontend Developer", "Backend Developer", "Product Manager"], index=0)
+use_gpt = st.sidebar.checkbox("Enable GPT Suggestions", value=True)
+max_gpt_tokens = st.sidebar.slider("GPT Max Tokens", 200, 1200, 600)
 
 st.title("📄 Smart Resume Reviewer — Enhanced")
-st.markdown("AI-powered resume analysis with visual insights and optional GPT improvements.")
+st.markdown("AI-powered resume analysis with visual insights and GPT or demo-based feedback.")
 
 # -----------------------------
 # Helpers
@@ -64,6 +66,8 @@ SECTION_PATTERNS = {
     "education": r"^(education|academics|qualifications)",
     "skills": r"^(skills|technical skills|skills & tools)",
 }
+
+# Demo GPT suggestion fallback
 ROLE_DEMO_SUGGESTIONS = {
     "Data Scientist": [
         "Include details about ML models you’ve built (with accuracy metrics).",
@@ -114,6 +118,9 @@ def get_gpt_suggestions(text: str, role: str) -> str:
         ])
         formatted = "\n".join([f"- {s}" for s in demo_suggestions])
         return f"⚠️ GPT request failed, showing demo suggestions instead.\n{formatted}"
+
+# The rest of the code remains unchanged...
+
 
 
 def extract_text_from_pdf_bytes(b: bytes) -> str:
