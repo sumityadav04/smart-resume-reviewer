@@ -64,16 +64,38 @@ SECTION_PATTERNS = {
     "education": r"^(education|academics|qualifications)",
     "skills": r"^(skills|technical skills|skills & tools)",
 }
-# Demo GPT suggestion fallback
+ROLE_DEMO_SUGGESTIONS = {
+    "Data Scientist": [
+        "Include details about ML models you’ve built (with accuracy metrics).",
+        "Showcase data visualization skills with tools like Tableau or Matplotlib.",
+        "Add projects where you handled large datasets (Big Data, SQL)."
+    ],
+    "Frontend Developer": [
+        "Highlight modern frameworks (React, Vue, Angular).",
+        "Show responsive design or performance optimization achievements.",
+        "Include GitHub/portfolio links for UI projects."
+    ],
+    "Backend Developer": [
+        "Emphasize API development and database management skills.",
+        "Show scalability or performance improvements in past work.",
+        "Mention experience with cloud platforms (AWS, GCP, Azure)."
+    ],
+    "Product Manager": [
+        "Add measurable outcomes (e.g., increased user engagement by 20%).",
+        "Highlight cross-functional leadership experience.",
+        "Show expertise in roadmapping and KPI-driven decisions."
+    ],
+}
+
 def get_gpt_suggestions(text: str, role: str) -> str:
     if not openai.api_key or openai.api_key.strip() == "":
-        return (
-            f"💡 **Demo Suggestions for {role}:**\n"
-            "- Add more measurable achievements (use numbers/percentages).\n"
-            "- Highlight projects relevant to the role.\n"
-            "- Tailor your skills section with industry keywords.\n"
-            "- Keep sentences concise and action-oriented.\n"
-        )
+        demo_suggestions = ROLE_DEMO_SUGGESTIONS.get(role, [
+            "Add more measurable achievements.",
+            "Tailor skills section with industry keywords.",
+            "Keep sentences concise and action-oriented."
+        ])
+        formatted = "\n".join([f"- {s}" for s in demo_suggestions])
+        return f"💡 **Demo Suggestions for {role}:**\n{formatted}"
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -85,7 +107,13 @@ def get_gpt_suggestions(text: str, role: str) -> str:
         )
         return response.choices[0].message["content"]
     except Exception:
-        return "⚠️ GPT request failed, showing demo suggestions instead.\n- Emphasize role-specific keywords.\n- Improve clarity in work experience.\n- Add a strong summary section."
+        demo_suggestions = ROLE_DEMO_SUGGESTIONS.get(role, [
+            "Emphasize role-specific keywords.",
+            "Improve clarity in work experience.",
+            "Add a strong summary section."
+        ])
+        formatted = "\n".join([f"- {s}" for s in demo_suggestions])
+        return f"⚠️ GPT request failed, showing demo suggestions instead.\n{formatted}"
 
 
 def extract_text_from_pdf_bytes(b: bytes) -> str:
