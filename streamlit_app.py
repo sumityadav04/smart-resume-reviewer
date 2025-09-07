@@ -64,6 +64,28 @@ SECTION_PATTERNS = {
     "education": r"^(education|academics|qualifications)",
     "skills": r"^(skills|technical skills|skills & tools)",
 }
+# Demo GPT suggestion fallback
+def get_gpt_suggestions(text: str, role: str) -> str:
+    if not openai.api_key or openai.api_key.strip() == "":
+        return (
+            f"💡 **Demo Suggestions for {role}:**\n"
+            "- Add more measurable achievements (use numbers/percentages).\n"
+            "- Highlight projects relevant to the role.\n"
+            "- Tailor your skills section with industry keywords.\n"
+            "- Keep sentences concise and action-oriented.\n"
+        )
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert resume reviewer."},
+                {"role": "user", "content": f"Review this resume for a {role} role and give concise suggestions:\n{text}"}
+            ],
+            max_tokens=max_gpt_tokens,
+        )
+        return response.choices[0].message["content"]
+    except Exception:
+        return "⚠️ GPT request failed, showing demo suggestions instead.\n- Emphasize role-specific keywords.\n- Improve clarity in work experience.\n- Add a strong summary section."
 
 
 def extract_text_from_pdf_bytes(b: bytes) -> str:
