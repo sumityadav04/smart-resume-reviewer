@@ -6,10 +6,13 @@ import fitz  # PyMuPDF
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from openai import OpenAI
+import openai
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize OpenAI client using environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+if not openai.api_key:
+    st.error("❌ OPENAI_API_KEY not found! Please set it in your environment variables.")
 
 st.set_page_config(page_title="Smart Resume Reviewer", layout="wide")
 st.title("📄 Smart Resume Reviewer")
@@ -34,37 +37,46 @@ def extract_text(uploaded_file):
 
 # GPT-based Resume Feedback
 def gpt_resume_feedback(resume_text: str, role: str, job_desc: str = None) -> str:
+    if not openai.api_key:
+        return "⚠️ OpenAI API key missing."
+    
     if job_desc:
         prompt = f"You are an expert career coach. Review the following resume for a {role} role. Consider this job description as reference: {job_desc}\n\nResume:\n{resume_text}"
     else:
         prompt = f"You are an expert career coach. Review the following resume for a {role} role and provide detailed feedback.\n\nResume:\n{resume_text}"
     
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]
 
 # GPT Resume Rewriter
 def gpt_resume_rewriter(resume_text: str, role: str) -> str:
+    if not openai.api_key:
+        return "⚠️ OpenAI API key missing."
+
     prompt = f"Rewrite the following resume to better highlight achievements and skills relevant for a {role} role, while keeping the professional tone intact.\n\nResume:\n{resume_text}"
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]
 
 # GPT Career Suggestions
 def gpt_career_suggestions(resume_text: str, role: str) -> str:
+    if not openai.api_key:
+        return "⚠️ OpenAI API key missing."
+
     prompt = f"You are a career mentor. Based on the following resume for a {role} role, suggest specific ways to improve career prospects, skills to learn, and unique strategies to stand out.\n\nResume:\n{resume_text}"
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]
 
 # Skill analysis for visualization
 def skill_analysis(resume_text: str, job_desc: str = None):
@@ -124,12 +136,12 @@ if resume_file:
     custom_q = st.text_input("Enter your question", key="custom_q")
     if st.button("Get Answer", key="q_btn") and custom_q:
         prompt = f"The following is a resume:\n{resume_text}\n\nQuestion: {custom_q}"
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
         )
-        st.write(response.choices[0].message.content)
+        st.write(response["choices"][0]["message"]["content"])
 
     if st.button("Get Career Suggestions", key="suggestion_btn"):
         suggestions = gpt_career_suggestions(resume_text, role)
