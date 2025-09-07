@@ -693,3 +693,5 @@ if st.button("🔍 Analyze Resume"):
         if st.button("Rewrite Section"):
             rewritten = gpt_rewrite_section(resume_text, section_choice, role)
             st.write(rewritten)
+resume_file = st.file_uploader("Upload Resume (PDF or TXT)", type=["pdf", "txt"], key="resume_upload")
+job_file = st.file_uploader("Upload Job Description", type=["pdf", "txt"], key="job_upload")
